@@ -201,4 +201,6 @@ fluxible_df <- flux_calc(
         fluxible_flux = "f_flux"
     )
 # View(fluxible_df)
+
+saveRDS(fluxible_df, "compare_data/fluxible_df.rds")
 ```

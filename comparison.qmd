@@ -18,6 +18,7 @@ options(tidyverse.quiet = TRUE)
 ```{r}
 #| label: "import-eos"
 
+library(tidyverse)
 
 fluxes_eos_read <- read_csv("compare_data/chamber_data.csv")
 
@@ -35,6 +36,8 @@ fluxes_eos <- fluxes_eos_read |>
 
 ```{r}
 #| label: "gather"
+
+fluxible_df <- readRDS("compare_data/fluxible_df.rds")
 
 fluxes_eos_id <- fluxes_eos |>
   filter(
@@ -70,7 +73,6 @@ comparison_fluxes <- left_join(fluxible_df_id, fluxes_eos_id, by = "id") |>
 library(ggplot2)
 library(ggpmisc)
 library(viridis)
-library(tidyverse)
 
 
 
