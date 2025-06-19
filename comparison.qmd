@@ -17,6 +17,8 @@ options(tidyverse.quiet = TRUE)
 
 ```{r}
 #| label: "import-eos"
+#| warning: false
+#| message: false
 
 library(tidyverse)
 
@@ -36,6 +38,8 @@ fluxes_eos <- fluxes_eos_read |>
 
 ```{r}
 #| label: "gather"
+#| warning: false
+#| message: false
 
 fluxible_df <- readRDS("compare_data/fluxible_df.rds")
 
