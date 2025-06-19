@@ -134,7 +134,7 @@ conc <- flux_match(
     fixed_length = FALSE
 ) |>
     drop_na(CO2_dry)
-View(conc)
+# View(conc)
 ```
 
 ```{r}
@@ -147,7 +147,7 @@ conc_fit <- flux_fitting(
     start_cut = 120,
     end_cut = 240
 )
-View(conc_fit)
+# View(conc_fit)
 ```
 
 ```{r}
@@ -161,11 +161,12 @@ conc_flags <- flux_quality(
         40:43
     )
 )
-View(conc_flags)
+# View(conc_flags)
 ```
 
 ```{r}
 #| label: "fluxible-plot"
+#| eval: false
 
 flux_plot(
     conc_flags,
@@ -173,7 +174,7 @@ flux_plot(
     print_plot = FALSE,
     output = "pdfpages",
     scale_x_datetime_args = list(
-        date_breaks = "5 min",
+        date_breaks = "3 min",
         minor_breaks = "1 min",
         date_label = "%e/%m \n %H:%M"
     )
@@ -199,5 +200,5 @@ fluxible_df <- flux_calc(
     rename(
         fluxible_flux = "f_flux"
     )
-View(fluxible_df)
+# View(fluxible_df)
 ```
