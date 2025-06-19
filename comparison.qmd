@@ -1,0 +1,35 @@
+---
+title: "Comparison with eosAC-T/O"
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+options(tidyverse.quiet = TRUE)
+```
+
+
+```{r}
+#| label: "import-eos"
+
+library(epitools)
+
+fluxes_eos_read <- read_csv("compare_data/chamber_data.csv")
+
+fluxes_eos <- fluxes_eos_read |>
+    mutate(
+        date = as.Date(`Julian Day`, origin = as.Date("2024-01-01")),
+        seconds = (`Julian Day` - floor(`Julian Day`)) * 24 * 3600,
+        time = hms::as_hms(seconds),
+        datetime = as_datetime(paste(date, time))
+    ) |>
+    select(datetime, everything())
+
+View(fluxes_eos)
+```

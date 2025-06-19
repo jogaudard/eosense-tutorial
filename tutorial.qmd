@@ -31,26 +31,43 @@ library(tidyverse)
 chamber_colnames <- c(
     "port", "valvestatus", "chamberstatus",
     "aux1", "aux2", "aux3", "aux4", "aux5",
-    "temperaturev", "pressurev"
+    "temperaturev", "pressure"
     )
 log_colnames <- c(
     "epochtime",
     rep(chamber_colnames, times = 12)
 )
 
-chamber_log_read <- read_log("ex_log/FRMonitor_0012.log", col_names = log_colnames)
+chamber_log_read <- list.files(
+    "ex_log",
+    full.names = TRUE
+) |>
+    map_dfr(
+        read_log,
+        col_names = log_colnames
+    )
+# read_log("ex_log/FRMonitor_0012.log", col_names = log_colnames)
 # repeated colnames are normal
-chamber_log <- chamber_log_read |>
+chamber_log_all <- chamber_log_read |>
     pivot_longer(!c(epochtime), names_to = c(".value", "variable"), names_sep = "_") |>
     filter(
         port %in% c(1:12) # we filter out all the rows with port -1
-        & chamberstatus %in% c(1:3) # very conservative, we can adjust the focus window later in flux_fitting
     ) |>
     arrange(epochtime) |> # just to be sure
     mutate( # without grouping
-        measurement_id = consecutive_id(port),
+        change_id = consecutive_id(port, chamberstatus, valvestatus), #detecting all changes in status
         datetime = as_datetime(epochtime) # we work in datetime
     ) |>
+    filter(
+        # & chamberstatus %in% c(1:3) # very conservative, we can adjust the focus window later in flux_fitting
+        chamberstatus == 1
+        & valvestatus == 10
+    ) |>
+    mutate(
+        measurement_id = consecutive_id(change_id) # just getting rid of the missing id after filter
+        )
+    
+chamber_log <- chamber_log_all |>
     mutate(
         .by = c(measurement_id),
         closing = min(datetime),
@@ -58,35 +75,48 @@ chamber_log <- chamber_log_read |>
     ) |>
     select(measurement_id, port, closing, opening) |>
     distinct()
-View(chamber_log)
+
+# We make a separate df for temp and pressure so we keep the 4 seconds reads
+chamber_temp_pres <- chamber_log_all |>
+    mutate(
+        air_temp = temperaturev * 15, # need to ask the exact conversion factor, for now this one makes sense
+        pressure = pressure / 101.325 # need atm for fluxible
+    ) |>
+    select(datetime, air_temp, pressure)
+
+# View(chamber_log)
 ```
 
 Possible improvements
 
 - take into account the chamber status better and  use it to by-pass the start and end cuts in flux_fitting. Opening and closing status would be "cut" (not used for fitting but visible on the plot), and fully open would be "keep".
 - keep the other columns
-- read several log files
-- need temperature and pressure for flux calculation
 
 ## Importing data file
 
 ```{r}
 #| label: "import-data"
 
-data_read <- read_table("ex_data/JFAADS2294-20241211-193921-DataLog_User.dat")
+data_read <- list.files(
+    "ex_data",
+    full.names = TRUE
+) |>
+    map_dfr(
+        read_table
+    )
+# read_table("ex_data/JFAADS2294-20241211-193921-DataLog_User.dat")
 
 data <- data_read |>
     mutate(
         f_datetime = as_datetime(paste(DATE, TIME))
     ) |>
-    select(f_datetime, CO2_dry) # we keep it simple for now and work only on CO2
+    left_join(chamber_temp_pres, by = join_by(f_datetime == datetime)) |> # adding air temp and pressure here
+    select(f_datetime, CO2_dry, air_temp, pressure) # we keep it simple for now and work only on CO2
 
-View(data)
+# View(data)
 ```
 
-Improvements
 
-- read several files
 
 # Processing the data
 
@@ -104,7 +134,7 @@ conc <- flux_match(
     fixed_length = FALSE
 ) |>
     drop_na(CO2_dry)
-
+View(conc)
 ```
 
 ```{r}
@@ -113,9 +143,11 @@ conc <- flux_match(
 conc_fit <- flux_fitting(
     conc_df = conc,
     f_conc = CO2_dry,
-    fit_type = "exp_zhao18"
+    fit_type = "exp_zhao18",
+    start_cut = 120,
+    end_cut = 240
 )
-
+View(conc_fit)
 ```
 
 ```{r}
@@ -123,9 +155,13 @@ conc_fit <- flux_fitting(
 
 conc_flags <- flux_quality(
     slopes_df = conc_fit,
-    f_conc = CO2_dry
+    f_conc = CO2_dry,
+    force_discard = c(
+        1:21,
+        40:43
+    )
 )
-
+View(conc_flags)
 ```
 
 ```{r}
@@ -133,6 +169,35 @@ conc_flags <- flux_quality(
 
 flux_plot(
     conc_flags,
-    f_conc = CO2_dry)
+    f_conc = CO2_dry,
+    print_plot = FALSE,
+    output = "pdfpages",
+    scale_x_datetime_args = list(
+        date_breaks = "5 min",
+        minor_breaks = "1 min",
+        date_label = "%e/%m \n %H:%M"
+    )
+    )
 
+```
+
+```{r}
+#| label: "fluxible-calc"
+
+fluxible_df <- flux_calc(
+    slopes_df = conc_flags,
+    slope_col = f_slope_corr,
+    temp_air_col = air_temp,
+    setup_volume = 4.756, # not sure if correct, found on website
+    plot_area = 0.032, # to check
+    # atm_pressure = 1,
+    atm_pressure = pressure,
+    conc_unit = "ppm",
+    flux_unit = "umol/m2/s",
+    cols_keep = "f_quality_flag"
+) |>
+    rename(
+        fluxible_flux = "f_flux"
+    )
+View(fluxible_df)
 ```
