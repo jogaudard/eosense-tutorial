@@ -24,6 +24,8 @@ More ressources on data import are available in [this vignette](https://plant-fu
 Importing the log and turning it into a dataframe with chamber ID (port nb), chamber closing time and re-opening time.
 ```{r}
 #| label: "import-log"
+#| warning: false
+#| message: false
 
 library(tidyverse)
 
@@ -96,6 +98,8 @@ Possible improvements
 
 ```{r}
 #| label: "import-data"
+#| warning: false
+#| message: false
 
 data_read <- list.files(
     "ex_data",
