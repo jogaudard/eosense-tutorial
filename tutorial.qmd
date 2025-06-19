@@ -19,6 +19,8 @@ In this section we will use the data in the ex_data folder.
 More ressources on data import are available in [this vignette](https://plant-functional-trait-course.github.io/fluxible/articles/data-prep.html) on the fluxible website.
 
 
+## Importing log file
+
 Importing the log and turning it into a dataframe with chamber ID (port nb), chamber closing time and re-opening time.
 ```{r}
 #| label: "import-log"
@@ -36,7 +38,7 @@ log_colnames <- c(
     rep(chamber_colnames, times = 12)
 )
 
-chamber_log_read <- read_log("ex_log/FRMonitor_0011.log", col_names = log_colnames)
+chamber_log_read <- read_log("ex_log/FRMonitor_0012.log", col_names = log_colnames)
 # repeated colnames are normal
 chamber_log <- chamber_log_read |>
     pivot_longer(!c(epochtime), names_to = c(".value", "variable"), names_sep = "_") |>
@@ -44,14 +46,19 @@ chamber_log <- chamber_log_read |>
         port %in% c(1:12) # we filter out all the rows with port -1
         & chamberstatus %in% c(1:3) # very conservative, we can adjust the focus window later in flux_fitting
     ) |>
+    arrange(epochtime) |> # just to be sure
+    mutate( # without grouping
+        measurement_id = consecutive_id(port),
+        datetime = as_datetime(epochtime) # we work in datetime
+    ) |>
     mutate(
-        .by = c(port),
-        datetime = as_datetime(epochtime), # we work in datetime
+        .by = c(measurement_id),
         closing = min(datetime),
         opening = max(datetime)
     ) |>
-    select(port, closing, opening) |>
+    select(measurement_id, port, closing, opening) |>
     distinct()
+View(chamber_log)
 ```
 
 Possible improvements
@@ -59,9 +66,73 @@ Possible improvements
 - take into account the chamber status better and  use it to by-pass the start and end cuts in flux_fitting. Opening and closing status would be "cut" (not used for fitting but visible on the plot), and fully open would be "keep".
 - keep the other columns
 - read several log files
-- add a measurement ID: in case the same port in used several times in the same log file, the current code will make a very long measurement instead of several (because of group_by port and min max functions)
+- need temperature and pressure for flux calculation
 
+## Importing data file
+
+```{r}
+#| label: "import-data"
+
+data_read <- read_table("ex_data/JFAADS2294-20241211-193921-DataLog_User.dat")
+
+data <- data_read |>
+    mutate(
+        f_datetime = as_datetime(paste(DATE, TIME))
+    ) |>
+    select(f_datetime, CO2_dry) # we keep it simple for now and work only on CO2
+
+View(data)
+```
+
+Improvements
+
+- read several files
 
 # Processing the data
 
-<!-- copy tutorial from fluxible -->
+```{r}
+#| label: "fluxible-match"
+
+library(fluxible)
+
+conc <- flux_match(
+    raw_conc = data,
+    field_record = chamber_log,
+    f_datetime = f_datetime,
+    start_col = closing,
+    end_col = opening,
+    fixed_length = FALSE
+) |>
+    drop_na(CO2_dry)
+
+```
+
+```{r}
+#| label: "fluxible-fitting"
+
+conc_fit <- flux_fitting(
+    conc_df = conc,
+    f_conc = CO2_dry,
+    fit_type = "exp_zhao18"
+)
+
+```
+
+```{r}
+#| label: "fluxible-quality"
+
+conc_flags <- flux_quality(
+    slopes_df = conc_fit,
+    f_conc = CO2_dry
+)
+
+```
+
+```{r}
+#| label: "fluxible-plot"
+
+flux_plot(
+    conc_flags,
+    f_conc = CO2_dry)
+
+```
