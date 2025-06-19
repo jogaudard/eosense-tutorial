@@ -1,0 +1,17 @@
+{
+  "hash": "e3c84c4609961d9fe3bd7a7ec5559c2f",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Comparison with eosAC-T/O\"\n---\n\n\n\n::: {.cell}\n\n```{.r .cell-code}\nlibrary(tidyverse)\n\nfluxes_eos_read <- read_csv(\"compare_data/chamber_data.csv\")\n#> Rows: 57 Columns: 58\n#> ── Column specification ────────────────────────────────────────────────────────\n#> Delimiter: \",\"\n#> chr  (2): Chamber Error Status, Metadata\n#> dbl (54): Julian Day, Analyzer Error Status, Multiplexer Port, Measurement D...\n#> lgl  (2): Chamber Serial, Multiplexer Serial\n#> \n#> ℹ Use `spec()` to retrieve the full column specification for this data.\n#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.\n\nfluxes_eos <- fluxes_eos_read |>\n    mutate(\n        date = as.Date(`Julian Day`, origin = as.Date(\"2024-01-01\")),\n        seconds = (`Julian Day` - floor(`Julian Day`)) * 24 * 3600,\n        time = hms::as_hms(seconds),\n        datetime = as_datetime(paste(date, time))\n    ) |>\n    select(datetime, everything())\n\n# View(fluxes_eos)\n```\n:::\n\n::: {.cell}\n\n```{.r .cell-code}\nfluxible_df <- readRDS(\"compare_data/fluxible_df.rds\")\n\nfluxes_eos_id <- fluxes_eos |>\n  filter(\n    datetime > ymd_hms(\"2024-12-12 00:00:01\")\n  ) |>\n  arrange(datetime) |>\n  rowid_to_column(\"id\")\n\nfluxible_df_id <- fluxible_df |>\n  filter(\n    f_datetime > ymd_hms(\"2024-12-12 00:03:01\")\n  ) |>\n  arrange(f_datetime) |>\n  rowid_to_column(\"id\")\n\ncomparison_fluxes <- left_join(fluxible_df_id, fluxes_eos_id, by = \"id\") |>\n  rename(\n    eos_flux = `Flux CO2 (E) (umol/m^2/s)`\n  )\n\n```\n:::\n\n::: {.cell}\n::: {.cell-output-display}\n![](comparison_files/figure-html/fig-eosense-1.png){#fig-eosense width=960}\n:::\n:::",
+    "supporting": [
+      "comparison_files"
+    ],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

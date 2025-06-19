@@ -1,7 +1,7 @@
 ---
-title: "eosense-tutorial"
+title: "Tutorials to process Eosense flux chambers data"
 ---
 
-This is a Quarto website.
+This website presents how to use the [fluxible R package](https://plant-functional-trait-course.github.io/fluxible/) to process data collected with [Eosense](https://eosense.com/) ecosystem gas flux chambers.
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+# Overview
