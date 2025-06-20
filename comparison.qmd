@@ -37,29 +37,92 @@ fluxes_eos <- fluxes_eos_read |>
 ```
 
 ```{r}
-#| label: "gather"
+#| label: gather
 #| warning: false
 #| message: false
 
 fluxible_df <- readRDS("compare_data/fluxible_df.rds")
 
 fluxes_eos_id <- fluxes_eos |>
-  filter(
-    datetime > ymd_hms("2024-12-12 00:00:01")
-  ) |>
+  # filter(
+  #   datetime > ymd_hms("2024-12-12 00:00:01")
+  # ) |>
   arrange(datetime) |>
   rowid_to_column("id")
 
 fluxible_df_id <- fluxible_df |>
-  filter(
-    f_datetime > ymd_hms("2024-12-12 00:03:01")
-  ) |>
+  # filter(
+  #   f_datetime > ymd_hms("2024-12-12 00:03:01")
+  # ) |>
   arrange(f_datetime) |>
   rowid_to_column("id")
 
 comparison_fluxes <- left_join(fluxible_df_id, fluxes_eos_id, by = "id") |>
   rename(
-    eos_flux = `Flux CO2 (E) (umol/m^2/s)`
+    eos_flux = `Flux CO2 (L) (umol/m^2/s)`,
+    eos_slope = `f (Linear Slope)`
+  )
+
+comparison_fluxes2 <- full_join(fluxible_df, fluxes_eos, by = join_by("f_datetime" == "datetime")) |>
+  rename(
+    eos_flux = `Flux CO2 (L) (umol/m^2/s)`
+  ) |>
+  select(f_datetime, fluxible_flux, eos_flux) |>
+  pivot_longer(!f_datetime, names_to = "method", values_to = "flux") |>
+  drop_na(flux) |>
+  arrange(f_datetime)
+
+comparison_fluxes3 <- full_join(fluxible_df, fluxes_eos, by = join_by("f_datetime" == "datetime")) |>
+  rename(
+    eos_slope = `f (Linear Slope)`
+  ) |>
+  select(f_datetime, fluxible_slope, eos_slope) |>
+  # pivot_longer(!f_datetime, names_to = "method", values_to = "slope") |>
+  # drop_na(slope) |>
+  arrange(f_datetime)
+
+# View(comparison_fluxes3)
+
+```
+
+```{r}
+#| label: fig-fluxes
+#| echo: false
+#| eval: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: ""
+
+library(ggplot2)
+
+comparison_fluxes2 |>
+  ggplot(aes(f_datetime, flux, color = method)) +
+  geom_point()
+
+```
+
+```{r}
+#| label: fig-slopes
+#| echo: false
+#| eval: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: ""
+
+library(ggplot2)
+
+comparison_fluxes3 |>
+  ggplot(aes(f_datetime, slope, color = method)) +
+  theme_bw() +
+  geom_point() +
+  scale_x_datetime(
+    date_breaks = "1 hour",
+    minor_breaks = "30 min",
+    date_label = "%e/%m \n %H:%M"
   )
 
 ```
@@ -68,6 +131,7 @@ comparison_fluxes <- left_join(fluxible_df_id, fluxes_eos_id, by = "id") |>
 ```{r}
 #| label: fig-eosense
 #| echo: false
+#| eval: false
 #| message: FALSE
 #| warning: false
 #| fig-width: 10
@@ -94,6 +158,166 @@ plot_eos <- comparison_fluxes |>
     # scale_fill_viridis(discrete = TRUE) +
     geom_point() +
     geom_text() +
+    geom_abline(slope = 1, intercept = 0) +
+    stat_poly_line() +
+    stat_correlation(use_label("cor.label", "R2", "n"))
+    # stat_poly_eq(use_label("R2", "n")) +
+    # facet_wrap(gas ~ ., scales = "free", nrow = 2, labeller = as_labeller(gas_names)) +
+    # labs(
+    #     title = "Comparison of flux estimates between SoilFluxPro and Fluxible",
+    #     x = "Fluxes calculated with Fluxible (exp_hm and linear model respectively)",
+    #     y = "Fluxes as provided by LI-COR (calculated with SFP)",
+    #     color = "Model"
+    # )
+plot_eos
+```
+
+```{r}
+#| label: fig-slopes-compare
+#| echo: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: "Comparing the slopes because I am quite sure I have the wrong area, volume and temperature."
+
+library(ggplot2)
+library(ggpmisc)
+library(viridis)
+
+
+
+plot_eos <- comparison_fluxes |>
+    ggplot(aes(fluxible_slope, eos_slope, label = f_fluxid)) +
+    theme_bw() +
+    # scale_color_manual(values = c(
+    #     Exponential = "#0c9f0b",
+    #     Linear = "#bf28bd")
+    # ) +
+    # theme(legend.position = c(0.87, 0.25)) +
+    # scale_fill_viridis(discrete = TRUE) +
+    geom_point() +
+    geom_text(hjust=-0.3, vjust=-0.3) +
+    geom_abline(slope = 1, intercept = 0) +
+    stat_poly_line() +
+    stat_correlation(use_label("cor.label", "R2", "n"))
+    # stat_poly_eq(use_label("R2", "n")) +
+    # facet_wrap(gas ~ ., scales = "free", nrow = 2, labeller = as_labeller(gas_names)) +
+    # labs(
+    #     title = "Comparison of flux estimates between SoilFluxPro and Fluxible",
+    #     x = "Fluxes calculated with Fluxible (exp_hm and linear model respectively)",
+    #     y = "Fluxes as provided by LI-COR (calculated with SFP)",
+    #     color = "Model"
+    # )
+plot_eos
+```
+
+<!-- A bit more exploration, seeing if there is a mismatch of the measurements due to wrong pairing between the two datasets. -->
+
+```{r}
+#| label: fig-diff
+#| echo: false
+#| eval: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: ""
+
+library(ggplot2)
+
+comparison_fluxes |>
+  mutate(
+    diff = fluxible_slope - eos_slope
+  ) |>
+  ggplot(aes(f_datetime, diff, label = f_fluxid)) +
+  theme_bw() +
+  geom_point() +
+  geom_text(hjust=-0.3, vjust=-0.3)
+
+```
+
+There are fluxes in the EOsense dataset that were not produced by fluxible.
+We identify them and remove them before pairing.
+<!-- Re pairing the two dataset while getting rid of those measurements that appear in one dataset and not in the other. -->
+
+```{r}
+#| label: pairing2
+
+
+fluxible_df <- readRDS("compare_data/fluxible_df.rds")
+
+fluxes_eos_id <- fluxes_eos |>
+  arrange(datetime) |>
+  rowid_to_column("eos_id") |>
+  filter(
+    !(eos_id %in% c(12, 22, 52)) # those are "in between" fluxes in the fluxible dataset
+  ) |>
+  rowid_to_column("id")
+
+fluxible_df_id <- fluxible_df |>
+  arrange(f_datetime) |>
+  rowid_to_column("id")
+
+comparison_fluxes4 <- left_join(fluxible_df_id, fluxes_eos_id, by = "id") |>
+  rename(
+    eos_flux = `Flux CO2 (L) (umol/m^2/s)`,
+    eos_slope = `f (Linear Slope)`
+  )
+
+# View(comparison_fluxes4)
+```
+
+```{r}
+#| label: fig-diff2
+#| echo: false
+#| eval: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: ""
+
+library(ggplot2)
+
+comparison_fluxes4 |>
+  mutate(
+    diff_slope = fluxible_slope - eos_slope,
+    diff_time = difftime(f_datetime, datetime, units = "secs")
+  ) |>
+  ggplot(aes(f_datetime, diff_time, label = f_fluxid)) +
+  theme_bw() +
+  geom_point() +
+  geom_text(hjust=-0.3, vjust=-0.3)
+
+```
+
+```{r}
+#| label: fig-slopes-compare2
+#| echo: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: "Comparing the linear slopes because I am quite sure I have the wrong area, volume and temperature so fluxes are off. x-axis is slopes processed with fluxible and y-axis is corresponding EOsense control data, lable are fluxid produced by fluxible."
+
+library(ggplot2)
+library(ggpmisc)
+library(viridis)
+
+
+
+plot_eos <- comparison_fluxes4 |>
+    ggplot(aes(fluxible_slope, eos_slope, label = f_fluxid)) +
+    theme_bw() +
+    # scale_color_manual(values = c(
+    #     Exponential = "#0c9f0b",
+    #     Linear = "#bf28bd")
+    # ) +
+    # theme(legend.position = c(0.87, 0.25)) +
+    # scale_fill_viridis(discrete = TRUE) +
+    geom_point() +
+    geom_text(hjust=-0.3, vjust=-0.3) +
     geom_abline(slope = 1, intercept = 0) +
     stat_poly_line() +
     stat_correlation(use_label("cor.label", "R2", "n"))
