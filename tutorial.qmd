@@ -57,13 +57,17 @@ chamber_log_all <- chamber_log_read |>
     ) |>
     arrange(epochtime) |> # just to be sure
     mutate( # without grouping
-        change_id = consecutive_id(port, chamberstatus, valvestatus), #detecting all changes in status
+        chamber = case_when(
+            chamberstatus %in% c(1:3) ~ "open",
+            chamberstatus == 0 ~ "closed"
+        ),
+        change_id = consecutive_id(port, chamberstatus), #detecting if same port but new measurement
         datetime = as_datetime(epochtime) # we work in datetime
     ) |>
     filter(
         # chamberstatus %in% c(1:3) # very conservative, we can adjust the focus window later in flux_fitting
         chamberstatus == 1
-        # & valvestatus == 10
+        # valvestatus == 10
     ) |>
     mutate(
         measurement_id = consecutive_id(change_id) # just getting rid of the missing id after filter
@@ -72,8 +76,8 @@ chamber_log_all <- chamber_log_read |>
 chamber_log <- chamber_log_all |>
     mutate(
         .by = c(measurement_id),
-        closing = min(datetime),
-        opening = max(datetime)
+        closing = min(datetime) - 300, # can be recut in flux_fitting, but so we see better
+        opening = max(datetime) + 300
     ) |>
     select(measurement_id, port, closing, opening) |>
     distinct()
@@ -86,13 +90,14 @@ chamber_temp_pres <- chamber_log_all |>
     ) |>
     select(datetime, air_temp, pressure)
 
-# View(chamber_log)
+# View(chamber_log_all)
 ```
 
 Possible improvements
 
 - take into account the chamber status better and  use it to by-pass the start and end cuts in flux_fitting. Opening and closing status would be "cut" (not used for fitting but visible on the plot), and fully open would be "keep".
 - keep the other columns
+- Because of the inconsistant offset between the closing of the chamber and the start of the flux, it is difficult to make a proper record of start/end of fluxes.
 
 ## Importing data file
 
@@ -120,7 +125,30 @@ data <- data_read |>
 # View(data)
 ```
 
+```{r}
+#| label: fig-fluxes
+#| echo: false
+#| eval: false
+#| message: FALSE
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: "Exploring where the fluxes are, because there is an offset in time."
 
+library(ggplot2)
+
+data |>
+    filter(
+        f_datetime <= ymd_hms("2024-12-11 21:00:00")
+    ) |>
+    ggplot(aes(f_datetime, CO2_dry)) +
+    theme_bw() +
+    geom_point() +
+    scale_x_datetime(date_breaks = "30 min",
+        minor_breaks = "5 min",
+        date_label = "%e/%m \n %H:%M")
+
+```
 
 # Processing the data
 
@@ -135,7 +163,8 @@ conc <- flux_match(
     f_datetime = f_datetime,
     start_col = closing,
     end_col = opening,
-    fixed_length = FALSE
+    fixed_length = FALSE,
+    time_diff = -15000 # 4h10
 ) |>
     drop_na(CO2_dry)
 # View(conc)
@@ -147,9 +176,10 @@ conc <- flux_match(
 conc_fit <- flux_fitting(
     conc_df = conc,
     f_conc = CO2_dry,
-    fit_type = "exp_zhao18",
-    start_cut = 120,
-    end_cut = 240
+    fit_type = "linear",
+    # fit_type = "exp_zhao18",
+    start_cut = 300,
+    end_cut = 300
 )
 # View(conc_fit)
 ```
@@ -160,10 +190,7 @@ conc_fit <- flux_fitting(
 conc_flags <- flux_quality(
     slopes_df = conc_fit,
     f_conc = CO2_dry,
-    force_discard = c(
-        1:21,
-        40:43
-    )
+    force_discard = 72 # obviously a complete mismatch
 )
 # View(conc_flags)
 ```
@@ -178,14 +205,18 @@ flux_plot(
     print_plot = FALSE,
     output = "pdfpages",
     scale_x_datetime_args = list(
-        date_breaks = "3 min",
-        minor_breaks = "1 min",
+        date_breaks = "10 min",
+        minor_breaks = "2 min",
         date_label = "%e/%m \n %H:%M"
-    )
+    ),
+    f_plotname = "eosense4h10f",
+    f_ylim_upper = 650
     )
 
 ```
 
+Note: I found a bug in flux_calc, it is not dealing well with the pressure as a variable.
+It is fixed in fluxible v1.2.5 (dev version), if you are using the CRAN version (v1.2.2) you will need to set the pressure as a constant.
 ```{r}
 #| label: "fluxible-calc"
 
@@ -194,7 +225,9 @@ fluxible_df <- flux_calc(
     slope_col = f_slope_corr,
     temp_air_col = air_temp,
     setup_volume = 72, # not sure if correct, found on website
+    # setup_volume = 4.756,
     plot_area = 0.21, # to check
+    # plot_area = 0.032,
     # atm_pressure = 1,
     atm_pressure = pressure,
     conc_unit = "ppm",
@@ -202,9 +235,22 @@ fluxible_df <- flux_calc(
     cols_keep = "f_quality_flag"
 ) |>
     rename(
-        fluxible_flux = "f_flux"
+        fluxible_flux = "f_flux",
+        fluxible_slope = "f_slope_corr"
+    ) |>
+    mutate(
+        f_datetime = f_datetime + 29329 # correcting the other way to match eosense
     )
 # View(fluxible_df)
 
 saveRDS(fluxible_df, "compare_data/fluxible_df.rds")
+```
+
+Structure of fluxible_df:
+```{r}
+#| label: fluxes-str
+#| echo: false
+
+str(fluxible_df, width = 70, strict.width = "cut")
+
 ```
