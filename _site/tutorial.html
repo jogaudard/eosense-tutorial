@@ -226,8 +226,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(epochtime) <span class="sc">|&gt;</span> <span class="co"># just to be sure</span></span>
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>( <span class="co"># without grouping</span></span>
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>        <span class="at">chamber =</span> <span class="fu">case_when</span>(</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>            chamberstatus <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) <span class="sc">~</span> <span class="st">"open"</span>,</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>            chamberstatus <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="st">"closed"</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>            chamberstatus <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>) <span class="sc">~</span> <span class="st">"closed"</span>,</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>            chamberstatus <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="st">"open"</span></span>
 <span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>        ),</span>
 <span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">change_id =</span> <span class="fu">consecutive_id</span>(port, chamberstatus), <span class="co">#detecting if same port but new measurement</span></span>
 <span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">datetime =</span> <span class="fu">as_datetime</span>(epochtime) <span class="co"># we work in datetime</span></span>
@@ -281,7 +281,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data_read <span class="sc">|&gt;</span></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">f_datetime =</span> <span class="fu">as_datetime</span>(<span class="fu">paste</span>(DATE, TIME))</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">f_datetime =</span> <span class="fu">as_datetime</span>(EPOCH_TIME)</span>
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">left_join</span>(chamber_temp_pres, <span class="at">by =</span> <span class="fu">join_by</span>(f_datetime <span class="sc">==</span> datetime)) <span class="sc">|&gt;</span> <span class="co"># adding air temp and pressure here</span></span>
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(f_datetime, CO2_dry, air_temp, pressure) <span class="co"># we keep it simple for now and work only on CO2</span></span>
@@ -302,7 +302,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">start_col =</span> closing,</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">end_col =</span> opening,</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">fixed_length =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_diff =</span> <span class="sc">-</span><span class="dv">15000</span> <span class="co"># 4h10</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">time_diff =</span> <span class="dv">0</span></span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">drop_na</span>(CO2_dry)</span>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co"># View(conc)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -317,16 +317,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">end_cut =</span> <span class="dv">300</span></span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Warning in flux_fitting(conc_df = conc, f_conc = CO2_dry, fit_type = "linear", : </span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 45 : slope was estimated on 216 points out of 857 seconds</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 53 : slope was estimated on 851 points out of 861 seconds</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 66 : slope was estimated on 852 points out of 853 seconds</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 69 : slope was estimated on 172 points out of 853 seconds</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 70 : slope was estimated on 849 points out of 856 seconds</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 71 : slope was estimated on 851 points out of 857 seconds</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 72 : slope was estimated on 845 points out of 853 seconds</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 87 : slope was estimated on 859 points out of 860 seconds</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 89 : slope was estimated on 848 points out of 849 seconds</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co"># View(conc_fit)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 71 : slope was estimated on 207 points out of 857 seconds</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 72 : slope was estimated on 1214 points out of 853 seconds</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 73 : slope was estimated on 1216 points out of 856 seconds</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 74 : slope was estimated on 1211 points out of 852 seconds</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 75 : slope was estimated on 1211 points out of 852 seconds</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 76 : slope was estimated on 1207 points out of 849 seconds</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 77 : slope was estimated on 1217 points out of 857 seconds</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 78 : slope was estimated on 1203 points out of 847 seconds</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 79 : slope was estimated on 1178 points out of 848 seconds</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 80 : slope was estimated on 1213 points out of 853 seconds</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 81 : slope was estimated on 1218 points out of 857 seconds</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 82 : slope was estimated on 1206 points out of 849 seconds</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 83 : slope was estimated on 1216 points out of 856 seconds</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 84 : slope was estimated on 1204 points out of 848 seconds</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 85 : slope was estimated on 1206 points out of 849 seconds</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 86 : slope was estimated on 1196 points out of 841 seconds</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 87 : slope was estimated on 1221 points out of 860 seconds</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 88 : slope was estimated on 1204 points out of 848 seconds</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 89 : slope was estimated on 1205 points out of 849 seconds</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 90 : slope was estimated on 1216 points out of 857 seconds</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 91 : slope was estimated on 1216 points out of 857 seconds</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 92 : slope was estimated on 1210 points out of 853 seconds</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 93 : slope was estimated on 1221 points out of 861 seconds</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 94 : slope was estimated on 1204 points out of 849 seconds</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 95 : slope was estimated on 1208 points out of 853 seconds</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 96 : slope was estimated on 1199 points out of 845 seconds</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 97 : slope was estimated on 239 points out of 860 seconds</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 98 : slope was estimated on 1181 points out of 851 seconds</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 99 : slope was estimated on 186 points out of 133 seconds</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 100 : slope was estimated on 1184 points out of 853 seconds</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 101 : slope was estimated on 1210 points out of 856 seconds</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 102 : slope was estimated on 1209 points out of 849 seconds</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 103 : slope was estimated on 1225 points out of 860 seconds</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 104 : slope was estimated on 1214 points out of 853 seconds</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 105 : slope was estimated on 1215 points out of 853 seconds</span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 106 : slope was estimated on 1220 points out of 857 seconds</span></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 107 : slope was estimated on 1213 points out of 852 seconds</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 108 : slope was estimated on 1210 points out of 853 seconds</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 109 : slope was estimated on 1199 points out of 848 seconds</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 110 : slope was estimated on 1203 points out of 852 seconds</span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 111 : slope was estimated on 1196 points out of 847 seconds</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 112 : slope was estimated on 1211 points out of 857 seconds</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  fluxID 113 : slope was estimated on 1204 points out of 852 seconds</span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a><span class="co"># View(conc_fit)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>conc_flags <span class="ot">&lt;-</span> <span class="fu">flux_quality</span>(</span>
@@ -335,12 +369,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">force_discard =</span> <span class="dv">72</span> <span class="co"># obviously a complete mismatch</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Total number of measurements: 55</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Total number of measurements: 43</span></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  ok   30      55 %</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  discard      21      38 %</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  zero     3   5 %</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  force_discard    1   2 %</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  ok   39      91 %</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  discard      3   7 %</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  force_discard    1   2 %</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  zero     0   0 %</span></span>
 <span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  start_error      0   0 %</span></span>
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  no_data      0   0 %</span></span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  force_ok     0   0 %</span></span>
@@ -400,15 +434,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>Structure of fluxible_df:</p>
 <div class="cell">
-<pre><code>#&gt; tibble [55 × 8] (S3: tbl_df/tbl/data.frame)
-#&gt;  $ f_quality_flag    : chr [1:55] "discard" "ok" "ok" "ok" ...
-#&gt;  $ f_fluxid          : Factor w/ 113 levels "1","2","3","4",..: 45 4..
-#&gt;  $ fluxible_slope    : num [1:55] NA 0.023 0.0543 0.0564 0.0222 ...
-#&gt;  $ f_temp_air_ave    : num [1:55] 10.7 NaN 10.7 10.9 11 ...
-#&gt;  $ f_atm_pressure_ave: num [1:55] 0.993 NaN 1.048 0.992 1.052 ...
-#&gt;  $ f_datetime        : POSIXct[1:55], format: "2024-12-11 20:37:33" ..
-#&gt;  $ fluxible_flux     : num [1:55] NA NaN 0.838 0.822 0.343 ...
-#&gt;  $ f_model           : chr [1:55] "linear" "linear" "linear" "linea"..
+<pre><code>#&gt; tibble [43 × 8] (S3: tbl_df/tbl/data.frame)
+#&gt;  $ f_quality_flag    : chr [1:43] "discard" "force_discard" "ok" "o"..
+#&gt;  $ f_fluxid          : Factor w/ 113 levels "1","2","3","4",..: 71 7..
+#&gt;  $ fluxible_slope    : num [1:43] NA NA 0.0545 0.0542 0.0211 ...
+#&gt;  $ f_temp_air_ave    : num [1:43] NaN NaN NaN NaN 6.76 ...
+#&gt;  $ f_atm_pressure_ave: num [1:43] NaN NaN NaN NaN 1.01 ...
+#&gt;  $ f_datetime        : POSIXct[1:43], format: "2024-12-12 08:47:33" ..
+#&gt;  $ fluxible_flux     : num [1:43] NA NA NaN NaN 0.317 ...
+#&gt;  $ f_model           : chr [1:43] "linear" "linear" "linear" "linea"..
 #&gt;  - attr(*, "fit_type")= chr "linear"</code></pre>
 </div>
 

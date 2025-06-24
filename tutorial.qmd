@@ -58,8 +58,8 @@ chamber_log_all <- chamber_log_read |>
     arrange(epochtime) |> # just to be sure
     mutate( # without grouping
         chamber = case_when(
-            chamberstatus %in% c(1:3) ~ "open",
-            chamberstatus == 0 ~ "closed"
+            chamberstatus %in% c(1:3) ~ "closed",
+            chamberstatus == 0 ~ "open"
         ),
         change_id = consecutive_id(port, chamberstatus), #detecting if same port but new measurement
         datetime = as_datetime(epochtime) # we work in datetime
@@ -117,7 +117,7 @@ data_read <- list.files(
 
 data <- data_read |>
     mutate(
-        f_datetime = as_datetime(paste(DATE, TIME))
+        f_datetime = as_datetime(EPOCH_TIME)
     ) |>
     left_join(chamber_temp_pres, by = join_by(f_datetime == datetime)) |> # adding air temp and pressure here
     select(f_datetime, CO2_dry, air_temp, pressure) # we keep it simple for now and work only on CO2
@@ -164,7 +164,7 @@ conc <- flux_match(
     start_col = closing,
     end_col = opening,
     fixed_length = FALSE,
-    time_diff = -15000 # 4h10
+    time_diff = 0
 ) |>
     drop_na(CO2_dry)
 # View(conc)
